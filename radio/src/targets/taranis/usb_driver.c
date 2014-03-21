@@ -40,7 +40,22 @@
 
 int usbPlugged(void)
 {
-  return GPIO_ReadInputDataBit(GPIOA, PIN_FS_VBUS);
+  // debounce...
+  static bool debounced = false;
+  static bool previous = false;
+  if (GPIO_ReadInputDataBit(GPIOA, PIN_FS_VBUS)) {
+    if (previous) {
+      debounced = true;
+    }
+    previous = true;
+  }
+  else {
+    if (!previous) {
+      debounced = false;
+    }
+    previous = false;
+  }
+  return debounced;
 }
 
 USB_OTG_CORE_HANDLE USB_OTG_dev;
@@ -57,5 +72,14 @@ void usbInit()
 
 void usbStart()
 {
+#if defined(BOOT)
+  USBD_Init(&USB_OTG_dev, USB_OTG_FS_CORE_ID, &USR_desc, &USBD_HID_cb, &USR_cb);
+#else
   USBD_Init(&USB_OTG_dev, USB_OTG_FS_CORE_ID, &USR_desc, &USBD_MSC_cb, &USR_cb);
+#endif
+}
+
+void usbStop()
+{
+  USBD_DeInit(&USB_OTG_dev);
 }
